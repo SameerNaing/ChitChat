@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 import 'package:chit_chat/models/models.dart';
 import 'package:chit_chat/repository/repository.dart';
@@ -34,6 +35,8 @@ class MessageBloc extends Bloc<MessageEvents, MessageStates> {
       yield* _mapSetIndexToState(event);
     } else if (event is SendImage) {
       yield* _mapSendImageToState(event.image);
+    } else if (event is ImageMessageUploaded) {
+      yield* _mapImageMessageUploadedToState(event.path);
     } else if (event is SendGif) {
       yield* _mapSendGifToState(event.url);
     } else if (event is MessageSeen) {
@@ -107,34 +110,39 @@ class MessageBloc extends Bloc<MessageEvents, MessageStates> {
   Stream<MessageStates> _mapSendImageToState(File image) async* {
     yield state.update(imageSendingStatus: ImageSendingStatus.Sending);
     try {
-      int index = await _messageFireStore.getMessageIndex(
-          currentUserId: state.currentUser.uid, reciverId: state.reciver.uid);
       File compressedImage = await Utilities.compressImage(image);
       String uniqueId = _uuid.v4();
       String imagePath = _fireStorage.createImageMessageReference(uniqueId);
-      String url = await _fireStorage.uploadImage(compressedImage);
-
-      MessageModel imageMessage = MessageModel.imageMessage(
-        index: index,
-        senderId: state.currentUser.uid,
-        reciverId: state.reciver.uid,
-        url: url,
-        type: TYPE_IMAGE,
-        storedImagePath: imagePath,
-      );
-      await _messageFireStore.displayMessage(
-          message: imageMessage,
-          currentUserModel: state.currentUser,
-          reciverUserModel: state.reciver);
-      await _messageFireStore.sendImage(imageMessage);
-      await _messageFireStore.setMessageIndexInfoValue(
-          value: index + 1,
-          currentUserId: state.currentUser.uid,
-          reciverId: state.reciver.uid);
+      UploadTask task = _fireStorage.uploadImage(compressedImage);
+      task.whenComplete(() => add(ImageMessageUploaded(path: imagePath)));
     } catch (e) {
       yield state.update(imageSendingStatus: ImageSendingStatus.Sent);
       print(e);
     }
+  }
+
+  Stream<MessageStates> _mapImageMessageUploadedToState(String path) async* {
+    await _fireStorage.openExistingPath(path);
+    int index = await _messageFireStore.getMessageIndex(
+        currentUserId: state.currentUser.uid, reciverId: state.reciver.uid);
+    String imgUrl = await _fireStorage.downloadUrl();
+    MessageModel imageMessage = MessageModel.imageMessage(
+      index: index,
+      senderId: state.currentUser.uid,
+      reciverId: state.reciver.uid,
+      url: imgUrl,
+      type: TYPE_IMAGE,
+      storedImagePath: path,
+    );
+    await _messageFireStore.displayMessage(
+        message: imageMessage,
+        currentUserModel: state.currentUser,
+        reciverUserModel: state.reciver);
+    await _messageFireStore.sendImage(imageMessage);
+    await _messageFireStore.setMessageIndexInfoValue(
+        value: index + 1,
+        currentUserId: state.currentUser.uid,
+        reciverId: state.reciver.uid);
   }
 
   Stream<MessageStates> _mapSendGifToState(String url) async* {

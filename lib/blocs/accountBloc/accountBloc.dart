@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 import 'package:chit_chat/blocs/blocs.dart';
 import 'package:chit_chat/repository/repository.dart';
@@ -50,6 +51,8 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
       yield* _mapRegisterToState(event);
     } else if (event is UploadProfileImage) {
       yield* _mapUploadProfilePhotoToState(event.imageFile);
+    } else if (event is ProfileImageUploaded) {
+      yield* _mapProfileImageUploadedToState();
     } else if (event is AddInfo) {
       yield* _mapAddInfoToState(event, prefs);
     } else if (event is SignOut) {
@@ -160,17 +163,23 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
       String userId = _auth.userId;
       String uniqueId = _uuid.v4();
       String picPath = _fireStorage.createProfileReference(userId, uniqueId);
-      String imgUrl = await _fireStorage.uploadImage(imageFile);
-
       _profilePhotoPath = picPath;
-      _profilePhotoUrl = imgUrl;
 
-      yield state.update(
-          accountStatus: AccountStatus.ProfilePhotoUploaded,
-          profilePicUrl: _profilePhotoUrl);
+      UploadTask task = _fireStorage.uploadImage(imageFile);
+      task.whenComplete(() => add(ProfileImageUploaded()));
     } catch (e) {
       yield* _yieldError(e.toString());
     }
+  }
+
+  Stream<AccountState> _mapProfileImageUploadedToState() async* {
+    await _fireStorage.openExistingPath(_profilePhotoPath);
+    String imgUrl = await _fireStorage.downloadUrl();
+    _profilePhotoUrl = imgUrl;
+
+    yield state.update(
+        accountStatus: AccountStatus.ProfilePhotoUploaded,
+        profilePicUrl: _profilePhotoUrl);
   }
 
   Stream<AccountState> _mapAddInfoToState(

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 import 'package:chit_chat/blocs/blocs.dart';
 import 'package:chit_chat/models/models.dart';
@@ -29,6 +30,8 @@ class ProfileBloc extends Bloc<ProfileEvents, ProfileStates> {
       yield* _mapLoadedCurrentUserProfileToState(event.userProfileData);
     } else if (event is UploadImage) {
       yield* _mapUploadImageToState(event.image);
+    } else if (event is ImageUploaded) {
+      yield* _mapImageUploadedToState(event.path);
     } else if (event is DeleteImage) {
       yield* _mapDeleteImageToState(event.imgUrl, event.imgPath);
     } else if (event is LoadUserProfile) {
@@ -64,13 +67,19 @@ class ProfileBloc extends Bloc<ProfileEvents, ProfileStates> {
     try {
       String storePath = _fireStorage.createImageUploadReference(
           state.currentUserProfile.uid, _uuid.v4());
-      String imgUrl = await _fireStorage.uploadImage(image);
-      UserModel newUserModel = _addImageToModel(imgUrl, storePath);
-      await _accountFireStore.addUser(newUserModel);
-      yield state.update(imageUploadStatus: ImageUploadStatus.Uploaded);
+      UploadTask task = _fireStorage.uploadImage(image);
+      task.whenComplete(() => add(ImageUploaded(path: storePath)));
     } catch (e) {
       yield* _mapImageUploadError();
     }
+  }
+
+  Stream<ProfileStates> _mapImageUploadedToState(String path) async* {
+    await _fireStorage.openExistingPath(path);
+    String imgUrl = await _fireStorage.downloadUrl();
+    UserModel newUserModel = _addImageToModel(imgUrl, path);
+    await _accountFireStore.addUser(newUserModel);
+    yield state.update(imageUploadStatus: ImageUploadStatus.Uploaded);
   }
 
   Stream<ProfileStates> _mapLoadCurrentUserProfileToState() async* {

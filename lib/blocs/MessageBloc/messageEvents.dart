@@ -45,6 +45,12 @@ class SendImage extends MessageEvents {
   List<Object> get props => [image];
 }
 
+class ImageMessageUploaded extends MessageEvents {
+  String path;
+  ImageMessageUploaded({@required this.path});
+  List<Object> get props => [path];
+}
+
 class SendGif extends MessageEvents {
   final String url;
   SendGif({@required this.url});

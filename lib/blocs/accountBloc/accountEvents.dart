@@ -48,6 +48,8 @@ class UploadProfileImage extends AccountEvent {
   UploadProfileImage({this.imageFile});
 }
 
+class ProfileImageUploaded extends AccountEvent {}
+
 class RemoveAccount extends AccountEvent {
   final int index;
   RemoveAccount({@required this.index});

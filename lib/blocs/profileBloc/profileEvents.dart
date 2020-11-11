@@ -33,6 +33,13 @@ class UploadImage extends ProfileEvents {
   List<Object> get props => [image];
 }
 
+class ImageUploaded extends ProfileEvents {
+  String path;
+  ImageUploaded({@required this.path});
+  @override
+  List<Object> get props => [path];
+}
+
 class DeleteImage extends ProfileEvents {
   final String imgUrl;
   final String imgPath;

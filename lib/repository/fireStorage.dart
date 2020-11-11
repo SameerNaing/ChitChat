@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 
 class FireStorage {
-  StorageReference _storageReference;
+  Reference _storageReference;
 
   String createProfileReference(String userId, String uniqueId) {
     String storePath = 'ProfileImages/$userId/$uniqueId';
@@ -27,10 +27,13 @@ class FireStorage {
     _storageReference = FirebaseStorage.instance.ref().child(path);
   }
 
-  Future<String> uploadImage(File imageFile) async {
-    StorageUploadTask _task = _storageReference.putFile(imageFile);
-    String url = await (await _task.onComplete).ref.getDownloadURL();
-    return url;
+  UploadTask uploadImage(File imageFile) {
+    UploadTask task = _storageReference.putFile(imageFile);
+    return task;
+  }
+
+  Future<String> downloadUrl() async {
+    return await _storageReference.getDownloadURL();
   }
 
   deleteImage() {
