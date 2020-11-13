@@ -35,10 +35,10 @@ class AccountFireStore {
     return UserModel.fromMap(data.data());
   }
 
-  Future<void> updateFriendNum(String uid, bool add) async {
+  Future<void> updateFriendNum(String uid, int numFriends) async {
     UserModel user = await getUser(uid);
-    int friends = add ? user.numFriends + 1 : user.numFriends - 1;
-    user.numFriends = friends;
+
+    user.numFriends = numFriends;
     await _account
         .collection('chitChat')
         .doc('chitChatUsersDoc')

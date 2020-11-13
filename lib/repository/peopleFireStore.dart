@@ -100,27 +100,43 @@ class PeopleFireStore {
   }
 
   Future<void> _addFriend(
-      DisplayUserModel user, String toUserId, String docId) async {
-    await _getDocReference(toUserId, 'Friends', docId).set(user.toMap());
+      DisplayUserModel user, String toUserId, String addUserId) async {
+    await _getDocReference(toUserId, 'Friends', addUserId).set(user.toMap());
   }
 
-  Future<void> _deleteFriend(String userId, String docId) async {
-    await _getDocReference(userId, 'Friends', docId).delete();
+  Future<void> _deleteFriend(String userId, String removeUserId) async {
+    await _getDocReference(userId, 'Friends', removeUserId).delete();
+  }
+
+  Future<int> _getFriendListLength(String uid) async {
+    QuerySnapshot friends = await _firebaseFirestore
+        .collection('chitChat')
+        .doc('peopleDoc')
+        .collection('People')
+        .doc(uid)
+        .collection('Friends')
+        .get();
+    return friends.docs.length;
   }
 
   Future<void> acceptGetRequest(DisplayUserModel fromUser) async {
     await cancleGetRequest(fromUser);
-
     await _addFriend(fromUser, _currentUser.uid, fromUser.uid);
     await _addFriend(_currentUser, fromUser.uid, _currentUser.uid);
-    await _accountFireStore.updateFriendNum(_currentUser.uid, true);
-    await _accountFireStore.updateFriendNum(fromUser.uid, true);
+    int fromUserFriends = await _getFriendListLength(fromUser.uid);
+    int currentUserFriends = await _getFriendListLength(_currentUser.uid);
+    await _accountFireStore.updateFriendNum(fromUser.uid, fromUserFriends);
+    await _accountFireStore.updateFriendNum(
+        _currentUser.uid, currentUserFriends);
   }
 
-  Future<void> removeFromFriends(DisplayUserModel user) async {
-    await _deleteFriend(_currentUser.uid, user.uid);
-    await _accountFireStore.updateFriendNum(_currentUser.uid, false);
-    await _deleteFriend(user.uid, _currentUser.uid);
-    await _accountFireStore.updateFriendNum(user.uid, false);
+  Future<void> removeFromFriends(DisplayUserModel removeUser) async {
+    await _deleteFriend(_currentUser.uid, removeUser.uid);
+    await _deleteFriend(removeUser.uid, _currentUser.uid);
+    int removeUserFriends = await _getFriendListLength(removeUser.uid);
+    int currentUserFriends = await _getFriendListLength(_currentUser.uid);
+    await _accountFireStore.updateFriendNum(removeUser.uid, removeUserFriends);
+    await _accountFireStore.updateFriendNum(
+        _currentUser.uid, currentUserFriends);
   }
 }
