@@ -4,4 +4,4 @@ Simple chat app. (Flutter + Firebase)
 
 
 ## Watch Demo Video
-https://www.youtube.com/watch?v=dtdVQnnBpf0&t=1s
+https://studio.youtube.com/video/jl9j7qSGjCI/edit
